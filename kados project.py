@@ -6,12 +6,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 import sys
 np.set_printoptions(threshold=sys.maxsize)
+np.set_printoptions(threshold=np.inf)
 
-num_iterations = 100
-alpha = 10
-beta = 0.005
-evaporation_rate = 0.5
-pheromone_constant = 100
+
 
 def read_data(file_path: str) -> dict:
     dedomena = {}
@@ -21,26 +18,23 @@ def read_data(file_path: str) -> dict:
     for placemark in placemarks:
         name = placemark.find(".//{http://www.opengis.net/kml/2.2}name").text
         coordinates = placemark.find(".//{http://www.opengis.net/kml/2.2}coordinates").text
-        coordinate = [float(i) for i in coordinates.split(",")]
+        coordinate = [float(i) for i in coordinates.split(",")][0:2]
         dedomena[name]=coordinate
 
     return dedomena
 
 def distance(cords1: list,cords2: list):
    
-    d = math.sqrt((cords2[0] - cords1[0])**2 + (cords2[1] - cords1[1])**2 + (cords2[2] - cords1[2])**2)
-    return round(d,3)
+    d = (math.sqrt((cords2[0] - cords1[0])**2 + (cords2[1] - cords1[1])**2))
+    return round(d,7)
 
 def plot_map(points: dict):
     x = [points[point][0] for point in points]
     y = [points[point][1] for point in points]
-    z = [points[point][2] for point in points]
     fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    ax.scatter(x, y, z)
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
+    
+    plt.scatter(x, y)
+
     plt.show()
 
 def make_distance_array(data):
@@ -54,19 +48,73 @@ def make_distance_array(data):
                 continue
 
             distance_matrix[i][j] = distance(data[point1], data[point2])
+
     np.fill_diagonal(distance_matrix, 0)    
     return distance_matrix
 
+def ac(data,n_ants = 30,n_iterations = 100,decay=0.5,alpha= 1,beta = 2,Q =100):
+
+    point_names = [i for i in data]
+    print(data)
+
+    distances=make_distance_array(data)
+
+    pheromone = np.ones((len(data), len(data)))
+         
+    p_best = None         # Kalytero monopati
+    d_best = np.inf       # Apostasi kalyterou monopatiou
+
+    best_path = None
+    best_distance = np.inf
+
+    
+    for iteration in range(n_iterations):
+        # Arxikopoioume ta monopatia twn mirmigkiwn 
+        ant_paths = np.zeros((n_ants, len(distances)), dtype=int)
+        ant_distances = np.zeros(n_ants)
+
+        # Metakinisi mirmigiou analagoa tin lista twn pheremones kai analoga me tin apostash
+        for ant in range(n_ants):
+            current_node = np.random.randint(len(distances)) # Vazoume to mirmigki se mia tyxaia thesh
+            visited = [current_node]
+            #gia ola ta points
+            for i in range(len(distances) - 1):
+                unvisited = list(set(range(len(distances))) - set(visited)) #pairnoume tin lista twn mh visited shmeiwn
+                pheromone_values = np.power(pheromone[current_node, unvisited], alpha)#pairnoume tis times twn pheromones gia ta unvisited node tou twrinou node
+                distance_values = np.power(1.0 / distances[current_node, unvisited], beta)#pairnoume tis apostaseis twn apostaseis gia ta unvisited node tou twrinou node
+                probabilities = pheromone_values * distance_values / np.sum(pheromone_values * distance_values)#pairnoume tis pithanotites gia to epomeno node
+                next_node = np.random.choice(unvisited, p=probabilities)
+                visited.append(next_node)
+                current_node = next_node
+
+            ant_paths[ant] = visited
+            ant_distances[ant] += distances[visited[-1], visited[0]]
+            for i in range(len(visited) - 1):
+                ant_distances[ant] += distances[visited[i], visited[i+1]]
+
+        
+        delta_pheromone = np.zeros(pheromone.shape)
+        for ant in range(n_ants):
+            for i in range(len(distances) - 1):
+                delta_pheromone[ant_paths[ant, i], ant_paths[ant, i+1]] += 1.0 / ant_distances[ant]
+            delta_pheromone[ant_paths[ant, -1], ant_paths[ant, 0]] += 1.0 / ant_distances[ant]
+
+        pheromone = (1.0 - decay) * pheromone + delta_pheromone
+
+        
+        if ant_distances.min() < best_distance:
+            best_path = ant_paths[ant_distances.argmin()].copy()
+            best_distance = ant_distances.min()
 
 
-data = read_data("vyrwnas.kml")
+    
+
+    # Return the best path and distance
+    best_path=[point_names[i] for i in best_path]
+    return(best_path,best_distance)
+
+
+
+data = read_data("panagia.kml")
 plot_map(data)
-distance_array=make_distance_array(data)
-print(data)
-pheromone_matrix = np.ones((len(data), len(data)))
-
-
-
-
-#print(pheromone_matrix[0][3] ** alpha) * ((1 / distance_array[0][3]) ** beta)
-#print(distance(data["173"],data["174"]))
+print(ac(data))
