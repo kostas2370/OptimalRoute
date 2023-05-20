@@ -9,7 +9,6 @@ np.set_printoptions(threshold=sys.maxsize)
 np.set_printoptions(threshold=np.inf)
 
 
-
 def read_data(file_path: str) -> dict:
     dedomena = {}
     tree = ET.parse(file_path)
@@ -19,29 +18,29 @@ def read_data(file_path: str) -> dict:
         name = placemark.find(".//{http://www.opengis.net/kml/2.2}name").text
         coordinates = placemark.find(".//{http://www.opengis.net/kml/2.2}coordinates").text
         coordinate = [float(i) for i in coordinates.split(",")][0:2]
-        dedomena[name]=coordinate
+        dedomena[name] = coordinate
 
     return dedomena
 
-def distance(cords1: list,cords2: list):
+
+def distance(cords1: list, cords2: list):
    
     d = (math.sqrt((cords2[0] - cords1[0])**2 + (cords2[1] - cords1[1])**2))
-    return round(d,7)
+    return round(d, 7)
+
 
 def plot_map(points: dict):
     x = [points[point][0] for point in points]
     y = [points[point][1] for point in points]
-    fig = plt.figure()
-    
     plt.scatter(x, y)
-
     plt.show()
 
-def make_distance_array(data):
+
+def make_distance_array(data: list):
     num_points = len(data)
-    distance_matrix = np.zeros((num_points,num_points))
+    distance_matrix = np.zeros((num_points, num_points))
     
-    for i,point1 in enumerate(data):
+    for i, point1 in enumerate(data):
         
         for j, point2 in enumerate(data):
             if i == j:
@@ -52,7 +51,14 @@ def make_distance_array(data):
     np.fill_diagonal(distance_matrix, 0)    
     return distance_matrix
 
-def ac(data,n_ants = 30,n_iterations = 100,decay=0.5,alpha= 1,beta = 2,Q =100):
+
+def ac(data: list,
+       n_ants: int = 30,
+       n_iterations = 100,
+       decay: float = 0.5,
+       alpha: int= 1,
+       beta: int = 2,
+       ):
 
     point_names = [i for i in data]
     print(data)
@@ -61,9 +67,6 @@ def ac(data,n_ants = 30,n_iterations = 100,decay=0.5,alpha= 1,beta = 2,Q =100):
 
     pheromone = np.ones((len(data), len(data)))
          
-    p_best = None         # Kalytero monopati
-    d_best = np.inf       # Apostasi kalyterou monopatiou
-
     best_path = None
     best_distance = np.inf
 
@@ -82,7 +85,7 @@ def ac(data,n_ants = 30,n_iterations = 100,decay=0.5,alpha= 1,beta = 2,Q =100):
                 unvisited = list(set(range(len(distances))) - set(visited)) #pairnoume tin lista twn mh visited shmeiwn
                 pheromone_values = np.power(pheromone[current_node, unvisited], alpha)#pairnoume tis times twn pheromones gia ta unvisited node tou twrinou node
                 distance_values = np.power(1.0 / distances[current_node, unvisited], beta)#pairnoume tis apostaseis twn apostaseis gia ta unvisited node tou twrinou node
-                probabilities = pheromone_values * distance_values / np.sum(pheromone_values * distance_values)#pairnoume tis pithanotites gia to epomeno node
+                probabilities = pheromone_values * distance_values / np.sum(pheromone_values * distance_values)*1#pairnoume tis pithanotites gia to epomeno node
                 next_node = np.random.choice(unvisited, p=probabilities)
                 visited.append(next_node)
                 current_node = next_node
@@ -92,7 +95,6 @@ def ac(data,n_ants = 30,n_iterations = 100,decay=0.5,alpha= 1,beta = 2,Q =100):
             for i in range(len(visited) - 1):
                 ant_distances[ant] += distances[visited[i], visited[i+1]]
 
-        
         delta_pheromone = np.zeros(pheromone.shape)
         for ant in range(n_ants):
             for i in range(len(distances) - 1):
@@ -101,20 +103,20 @@ def ac(data,n_ants = 30,n_iterations = 100,decay=0.5,alpha= 1,beta = 2,Q =100):
 
         pheromone = (1.0 - decay) * pheromone + delta_pheromone
 
-        
         if ant_distances.min() < best_distance:
             best_path = ant_paths[ant_distances.argmin()].copy()
             best_distance = ant_distances.min()
 
-
-    
+        print('iteration {} : {}'.format(iteration,best_distance))
 
     # Return the best path and distance
     best_path=[point_names[i] for i in best_path]
     return(best_path,best_distance)
 
 
-
 data = read_data("panagia.kml")
-plot_map(data)
-print(ac(data))
+
+print(ac(data, n_ants=50, n_iterations = 50))
+
+
+
