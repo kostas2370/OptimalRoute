@@ -9,8 +9,11 @@ class Ant:
 
     def ant_trip(self, g_phero_graph, dist_mat, inv_dist_mat, alpha=1, beta=1, q=1):
         for _ in range(len(self.places_left)):
+            # Pick next destination
             next_destination = self.get_next_destination(g_phero_graph, inv_dist_mat, alpha, beta)
+            # Add distance into total distance travelled
             self.tour_cost += dist_mat[self.position, next_destination]
+            # Change current position and update travel-log variables
             self.position = next_destination
             self.places_visited.append(next_destination)
             self.places_left.remove(next_destination)
