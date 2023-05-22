@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
-from Ant import Ant
+from ant import Ant
 
 np.set_printoptions(threshold=sys.maxsize)
 np.set_printoptions(threshold=np.inf)
