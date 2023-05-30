@@ -1,47 +1,32 @@
+## Αλγόριθμος βελτιστοποίησης για τη δρομολόγηση απορριμματοφόρων στην πόλη της Καβάλας (Ant Colony Optimization):
+
+Στο μάθημα "Αλγόριθμοι Βελτιστοποίησης-2023" Του ΔΙΠΑΕ Πληροφορικής ζητήθηκε απο την ομάδα μας να επιλυθεί το παρακάτω πρόβλημα:
+
+> Βρείτε το βέλτιστο δρομολόγιο ενός απορριμματοφόρου που διέρχεται από τους κάδους της περιοχής που σας αντιστοιχεί. Σε κάθε ομάδα αντιστοιχεί ένας χάρτης, σε μορφή .kml, με τις θέσεις των κάδων απορριμάτων ανά περιοχή, τον οποίο μπορείτε να κατεβάσετε.
+
+# Διατύπωση προβλήματος βελτιστοποίησης:
+Το πρόβλημα αντιμετωπίζεται ως πρόβλημα δρομολόγησης ενός απορριμματοφόρου μεταξύ των κάδων απορριμάτων. Συγκεκριμένα, η εργασία σας είναι να βρείτε τη βέλτιστη διαδρομή που οδηγεί το απορριμματοφόρο από το ένα σημείο (κάδος απορριμάτων) στο άλλο, περνώντας από όλους τους κάδους της περιοχής μας. Στόχος είναι να ελαχιστοποιήσουμε την απόσταση που διανύει το απορριμματοφόρο, προσδιορίζοντας έτσι τη βέλτιστη διαδρομή.
+
+# Επεξήγηση επιλογής αλγορίθμου βελτιστοποίησης:
+Ο αλγόριθμος που επιλέχθηκε είναι ο Ant Colony Optimization (ACO). Άλλοι αλγόριθμοι όπως ο Γραμμικός Προγραμματισμός, Ακέραιος Προγραμματισμός, Μη Γραμμικός Προγραμματισμός, Στοχαστικές Μέθοδοι, Μεταευριστικές (π.χ. Γενετικοί Αλγόριθμοι) και Δυναμικός Προγραμματισμός μπορεί να έχουν δυνατότητα εφαρμογής, άλλα ο ACO μπορεί να εφαρμοστεί ποιο εύκολα, αφού και ήδη τον είδαμε σε πρόβλημα του πλανόδιου πωλητή που είναι παρόμοιο με το πρόβλημα που πρέπει να λύσουμε τώρα, και σε σχέση με τον αλγόριθμο του πλανόδιου πωλητή, ο ACO είναι πιο αποδοτικός με τον αριθμό των κόμβων που πρέπει να επισκεφτεί ο αλγόριθμος σε αυτό το πρόβλημα.
+
+# Κώδικας:
+Αρχικά οι βιβλιοθήκες που θα χρησιμοποιήσουμε...
+
+
 ```python
-import math
 import xml.etree.ElementTree as ET
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy
+import seaborn as sns
+from matplotlib import image as mpimg
 from tqdm import tqdm
 ```
 
-# Ant Colony Optimization Algorithm for Garbage Truck Routing Optimization
+Πρώτα απο το KML αρχείο θα κάνουμε extract τα σημεία και θα τα αποθηκεύσουμε σε ενα dictionary με keys τα ονόματα των σημείων και values τις συντεταγμένες τους. Θα χρησιμοποιήσουμε την xml library για να κάνουμε parse το KML αρχείο. Γραφούμε τη συνάρτηση parse_kml_file που θα κάνει αυτή τη δουλειά.
 
-This report aims to explain the implementation of the Ant Colony Optimization (ACO) algorithm for solving the problem of
-finding the optimal route for a garbage truck given the locations of the trash bins in a KML file.
-
-### Problem Description
-
-The problem at hand involves determining the most efficient route for a garbage truck to navigate through a specified
-area's trash bins. The objective is to minimize the total distance traveled by the truck while ensuring that all trash
-bins are visited exactly once. This problem can be formulated as a combinatorial optimization problem, with the aim of
-finding the optimal sequence of trash bin visits that minimizes the overall distance.
-
-### Choice of Optimization Algorithm
-
-Among the various optimization algorithms available, the Ant Colony Optimization (ACO) algorithm was selected for this
-problem due to its suitability and effectiveness. While other algorithms such as Linear Programming, Integer
-Programming, Nonlinear Programming, Stochastic Methods, Metaheuristics (e.g., Genetic Algorithms), and Dynamic
-Programming may have potential applicability, ACO stands out for several reasons:
-
-* Generality: ACO is a more generic algorithm that can effectively handle large-scale combinatorial problems. It does
-  not require complete problem knowledge in advance, making it suitable for scenarios where precise knowledge of all
-  garbage bin locations may not be available beforehand.
-* Success in TSP-like Problems: ACO has a proven track record of success in solving problems similar to the Traveling
-  Salesman Problem (TSP). Since the garbage truck routing problem shares similarities with TSP, ACO is a promising
-  choice for finding optimal routes in our scenario.
-
-### Problem Solution
-
-1. **Parsing KML File:**
-
-* Provide the path to the KML file you want to parse.
-* Call the parse_kml_file function, passing the file path as an argument.
-* Capture the returned dictionary of placemark information.
-* This step extracts the placemark names and coordinates from the KML file.
-* Example:
 
 ```python
 def parse_kml_file(file_path: str) -> dict:
@@ -70,133 +55,166 @@ def parse_kml_file(file_path: str) -> dict:
     return placemarks
 ```
 
-```python
-file_path = "Παναγία-Προφήτης Ηλίας.kml"
-placemarks = parse_kml_file(file_path)
-```
+Αποθηκεύουμε τα σημεία σε μια μεταβλητή και σε δύο άλλες μεταβλητές θα αποθηκεύσουμε τα ονόματα των σημείων και τις συντεταγμένες τους.
 
-Extract the names and coordinates of points from the placemarks dictionary and store them in point_names and points
-variables respectively.
 
 ```python
-point_names = list(placemarks.keys())
-points = np.array(list(placemarks.values()))
+bins_file_path = "Stena_Panagia___Stena_Profiti_Ilia___Nekrotafeia.kml"
+bins_kavala = parse_kml_file(bins_file_path)
+
+bin_names = list(bins_kavala.keys())
+bin_points = list(bins_kavala.values())
 ```
 
-Plot the points on a two-dimensional coordinate plane.
+Στη συνέχεια θα εμφανίσουμε τα σημεία με ένα scatter plot για να δούμε την κατανομή. Θα χρησιμοποιήσουμε τη matplotlib για να κάνουμε το plot.
 
-* points[:, 0]: This selects the first column of the points array, which represents the x-coordinates of the points. It
-  uses the syntax [:, 0] to select all rows (:) and the column with index 0.
-
-* points[:, 1]: This selects the second column of the points array, which represents the y-coordinates of the points. It
-  uses the syntax [:, 1] to select all rows (:) and the column with index 1.
-
-* plt.scatter(): This function from the Matplotlib library is used to create a scatter plot. It takes the x-coordinates
-  and y-coordinates of the points as its first and second arguments, respectively.
 
 ```python
-plt.scatter(points[:,0],points[:,1]);
+plt.scatter([i[0] for i in bin_points], [i[1] for i in bin_points])
 ```
 
-![png](optimal_route_files/optimal_route_8_0.png)
 
-To calculate the Euclidean distance between two points in a two-dimensional space, we will use the following function:
+
+
+ 
+
+
+
+    
+![png](optimal_route_files/optimal_route_8_1.png)
+    
+
+
+Μπορούμε να ορίσουμε μια συνάρτηση που θα εμφανίζει τα σημεία σε ένα χάρτη. Θα χρησιμοποιήσουμε τη matplotlib.image για να διαβάσουμε την εικόνα του χάρτη.
+
 
 ```python
-def distance(cords1: list, cords2: list):
-    d = (math.sqrt((cords2[0] - cords1[0]) ** 2 + (cords2[1] - cords1[1]) ** 2))
-    return round(d, 7)
+kavala_map = mpimg.imread("optimal_route_files/kavala_map.png")
 ```
 
-According to the Ant Colony Optimization (ACO) algorithm, as ants move through space, they leave a pheromone trail
-behind them. If another ant smells these pheromones, the chances of it following this path are increased by some
-percentage. The more ants that pass along a path, the more pheromones on the path increase, and the more ants are likely
-to follow it. This is why we see ants coming and going in a particular line, and this is a function that the ACO
-algorithm simulates.
+Μετά θα φτιάξουμε μια συνάρτηση που θα εμφανίζει τα σημεία στο χάρτη. Θα χρησιμοποιήσουμε τη matplotlib.pyplot για να κάνουμε το plot. Ορίζουμε τη συνάρτηση show_map_points που θα κάνει αυτή τη δουλειά. Είναι απαραίτητο να κάνουμε τις απαρέτητες μετατοπήσεις στον άξονα x και y για να εμφανίζονται σωστά τα σημεία στο χάρτη. Μπορούμε πολύ εύκολα έχοντας δύο γνωστά σημεία στον χάρτη και τις αντίστοιχες συντεταγμένες τους να βρούμε την εξίσωση της ευθείας που τα ενώνει και μετά να βρούμε τις συντεταγμένες του σημείου που θέλουμε να εμφανίσουμε στο χάρτη.
 
-In summary, the ACO algorithm works as follows:
-Each ant starts from a random point. Which point he chooses as the next on his path depends on three factors:
+Η σχέσεις που χρησιμοποιήσαμε εμείς είναι η εξής:
+Για τα Χ:
+<img src="optimal_route_files/metatopisi_x.png">
+Για τα Υ:
+<img src="optimal_route_files/metatopisi_y.png">
 
-1. The distance from its neighbouring points.
-2. The amount of pheromone in the neighbouring pathways.
-3. The luck factor, with the choice for the next point being made.
 
-Here we make a function that calculates a table with the distances between all points.
+(δεν είναι απόλυτα ακριβής αλλά είναι αρκετά κοντά για να έχουμε μία καλή εικόνα)
+
+Αρα η συνάρτηση θα είναι η εξής:
+
+
+```python
+def show_map_points(path, w=12, h=8):
+    plt.figure(figsize=(w,h))
+    plt.imshow(kavala_map)
+    for i in range(len(path)):
+        x_c = 29140.7* path[i][0] - 710754
+        y_c = 1.58139 * 10**6 - 38614.2*path[i][1]
+        plt.scatter(x_c, y_c, c ='y', marker='*', s=100)
+    plt.show()
+```
+
+Μπορούμε τώρα να εμφανίσουμε τα σημεία στο χάρτη.
+
+
+```python
+show_map_points(bin_points)
+```
+
+
+    
+![png](optimal_route_files/optimal_route_14_0.png)
+    
+
+
+Μία καλή αρχή για την επίλυση του προβλήματος είναι να υπολογίσουμε την απόσταση μεταξύ δύο σημείων. Θα χρησιμοποιήσουμε τη συνάρτηση distance.euclidean της scipy για να υπολογίσουμε την απόσταση μεταξύ δύο σημείων. Ορίζουμε τη συνάρτηση distance που θα κάνει αυτή τη δουλειά.
+
+
+```python
+def distance(p1, p2):
+    return scipy.spatial.distance.euclidean(p1, p2)
+```
+
+Παραδείγματα χρήσης της συνάρτησης distance:
+
+
+```python
+print(distance([0,0],[3,4]))
+```
+
+    5.0
+    
+
+Το οποίο ισχύει γιατί η απόσταση μεταξύ των σημείων (0,0) και (3,4) είναι 5.
+<img src="optimal_route_files/distance_example.png">
+
+Θα χρειαστεί να υπολογίσουμε την απόσταση μεταξύ όλων των σημείων. Θα χρησιμοποιήσουμε τη συνάρτηση distance για να υπολογίσουμε την απόσταση μεταξύ όλων των σημείων. Αυτό θα το κάνουμε με τη χρήση της συνάρτησης distance_matrix της scipy. Ορίζουμε τη συνάρτηση distance_matrix που θα κάνει αυτή τη δουλειά.
+
 
 ```python
 def distance_matrix(points):
-    points_size = points.shape[0]
-    dist_mat = np.zeros((points_size, points_size))
-
-    for i in range(points_size):
-        for j in range(points_size):
-            dist_mat[i, j] = distance(points[i], points[j])
-
-    return dist_mat
+    dist_array = scipy.spatial.distance_matrix(points, points)
+    return dist_array
 ```
 
-By calling the function with the data points of this exercise and drawing a heatmap of the table, we obtain the
-following illustration. (The black diagonal means that each point is zero distance from itself. )
+Παραδείγμα χρήσης της συνάρτησης distance_matrix με τα σημεία των κάδων απορριμμάτων, χρησιμοποιώντας τη βιβλίοθήκη seaborn για να εμφανίσουμε τον πίνακα απόστασης:
+
 
 ```python
-#dist_map demo
-import seaborn as sns
-print(len(points))
-dist_map = distance_matrix(points)
-sns.heatmap(dist_map);
+dist_matrix = distance_matrix(bin_points)
+
+sns.heatmap(dist_matrix)
 ```
 
-    136
 
-![png](optimal_route_files/optimal_route_15_1.png)
 
-The ACO algorithm uses the inverse of the distance, raised to a power $β$, which is a parameter of the method.
-We define a function, which constructs the table with the inverse distances.
+
+   
+
+
+
+
+    
+![png](optimal_route_files/optimal_route_23_1.png)
+    
+
+
+ Στον αλγόριθμο Ant Colony Optimization θα χρειαστούμε των πίνακα αντιστρόφων των αποστάσεων. Ορίζουμε τη συνάρτηση inverse_distance_matrix που θα κάνει αυτή τη δουλειά. Όταν οι αποστάσεις είναι μηδενικές όταν τα σημεία είναι το ίδιο. Στην περίπτωση αυτή γίνεται δίαίρεση με το 0. Το διορθώνουμε ορίζοντας τη διαγώνιο σε 1 πριν τη διαίρεση και μετά ξανά σε 0.
+
 
 ```python
 def inverse_distance_matrix(points):
-    points_size = points.shape[0]
-    inv_dist_mat = np.zeros((points_size, points_size))
+    dist_array = distance_matrix(points)
 
-    # first, construct the distance matrix
-    dist_mat = distance_matrix(points)
+    # Set diagonal elements to a 1 to avoid division by zero
+    np.fill_diagonal(dist_array, 1)
 
-    for i in range(points_size):
-        for j in range(points_size):
-            if i == j:
-                pass
-            else:
-                inv_dist_mat[i, j] = 1.0 / dist_mat[i, j]
+    inv_dist_array = 1 / dist_array
 
-    return inv_dist_mat
+    # Set diagonal elements back to 0
+    np.fill_diagonal(dist_array, 0)
+
+    return inv_dist_array
+
 ```
 
-By calling the function with the data points of this exercise and drawing a heatmap of the table, we obtain the
-following illustration.
+Θα ξεκινήσουμε ορίζοντας μία κλάση Ant που θα αναπαριστά τα μυρμήγκια που θα χρησιμοποιήσουμε στον αλγόριθμο Ant Colony Optimization. Η κλάση θα έχει τα εξής χαρακτηριστικά:
+- position: η θέση του μυρμηγκιού
+- n_locations: ο αριθμός των σημείων του προβλήματος
+- places_visited: η λίστα με τα σημεία που έχει επισκεφτεί το μυρμήγκι
+- places_left: η λίστα με τα σημεία που έχει να επισκεφτεί το μυρμήγκι
+- tour_cost: το κόστος της διαδρομής του μυρμηγκιού
+- pheromone_graph: πίνακας με την ποσότητα φερομόνης που αντιστοιχεί σε κάθε πιθανό ζευγάρι σημείων του δικτύου.
 
-```python
-inv_dist_mat = inverse_distance_matrix(points)
+Επιπλέον, η Ant περιέχει και τις παρακάτω συναρτήσεις:
+- ant_trip: η συνάρτηση που υλοποιεί μία ολοκληρωμένη διαδρομή (σε κάθε επανάληψη του αλγορίθμου)
+- get_next_destination: η συνάρτηση που επιλέγει το επόμενο σημείο που θα επισκεφτεί το μυρμήγκι
+- update_pheromone_graph: η συνάρτηση που ενημερώνει τον πίνακα φερομόνης μετά από μία διαδρομή
+- flush: επαναρχικοποιεί τα δεδομένα του αντικειμένου (ώστε να είναι έτοιμα για την επόμενη επανάληψη)
 
-sns.heatmap(inv_dist_mat)
-```
-
-    <Axes: >
-
-![png](optimal_route_files/optimal_route_19_1.png)
-
-We define a 'class' Ant, which represents each ant and contains the following variables:
-
-* n_locations: the number of node-points in the problem.
-* position: the node-point where the ant is at the given moment.
-* places_visited: list of places where the ant has passed by.
-* places_left: list of places where the ant has not yet passed.
-* tour_cost: the total length of the route the ant has travelled so far.
-* phero_graph: a table with the amount of pheromone corresponding to each possible pair of points in the network.
-
-In addition, Ant also contains the following functions:
-
-* ant_trip: performs one complete trip for each ant (in each iteration of the algorithm).
-* ant_flush: rebuilds the object data (so that it is ready for the next iteration).
 
 ```python
 class Ant:
@@ -222,7 +240,10 @@ class Ant:
         places_left_indices = list(self.places_left)  # Convert set to a list of indices
         numerator = (g_phero_graph[self.position, places_left_indices] ** alpha) * \
                     (inv_dist_mat[self.position, places_left_indices] ** beta)
+
         probability = numerator / np.sum(numerator)
+
+
         return np.random.choice(places_left_indices, p=probability)
 
     def update_pheromone_graph(self, q):
@@ -241,61 +262,40 @@ class Ant:
         self._initialize()
 ```
 
-As we have seen, the chances of choosing the next point in an ant's path depend on the amount of pheromone present in
-each part of the path. These quantities are stored in a table, which will be updated every time an ant completes a
-journey.
+Ορίζουμε τη συνάρτηση ant_colony_optimization που υλοποιεί τον αλγόριθμο Ant Colony Optimization. Η συνάρτηση θα έχει τα εξής ορίσματα:
+- points: οι συντεταγμένες των σημείων του προβλήματος
+- n_ants: ο αριθμός των μυρμηγκιών που θα χρησιμοποιηθούν
+- n_iterations: ο αριθμός των επαναλήψεων του αλγορίθμου
+- alpha: ο παράγοντας που ελέγχει την επιρροή της ποσότητας φερομόνης στην επιλογή του επόμενου σημείου
+- beta: ο παράγοντας που ελέγχει την επιρροή της απόστασης στην επιλογή του επόμενου σημείου
+- evapo_coef: ο ρυθμός εξάτμισης της φερομόνης
 
-This update takes into account:
+Η συνάρτηση θα επιστρέφει τον πίνακα των συντεταγμένων των σημείων της βέλτιστης διαδρομής, τον πίνακα της βέλτιστης διαδρομής και το κόστος της βέλτιστης διαδρομής.
 
-* the sequence of points that make up the route.
-* the total length of the route (the shorter the better, so more pheromone is deposited to make the route look
-  attractive to other ants).
-* the pheromone evaporation coefficient (acts as a "memory" of the system).
+Αναλυτική επεξήγηση της συνάρτησης:
+- Υπολογίζουμε τους πίνακες απόστασης και αντίστροφης απόστασης
+- Αρχικοποιούμε τον πίνακα της φερομόνης με την τιμή phero_init
+- Αρχικοποιούμε τον πίνακα των μυρμηγκιών ants με τυχαίες θέσεις
+- Το Q είναι η σταθερά που χρησιμοποιείται για την ενημέρωση του πίνακα της φερομόνης, ορίζεται ως το αντίστροφο του κόστους της βέλτιστης διαδρομής επειδή θέλουμε να αυξάνεται η φερομόνη όσο μικραίνει το κόστος της διαδρομής
 
-We now write the pheromone renewal function:
 
-```python
-def update_pheromones(g_phero_graph, ants, evapo_coef=0.05):
-    dim = g_phero_graph.shape[0]
-
-    for i in range(dim):
-        for j in range(dim):
-            g_phero_graph[i, j] = (1 - evapo_coef) * g_phero_graph[i, j] + np.sum(
-                [ant.phero_graph[i, j] for ant in ants])
-            g_phero_graph[i, j] = max(g_phero_graph[i, j], 1e-08)  # avoid division by zero
-
-    return g_phero_graph
-```
-
-We now write the main algorithm in function form, which takes the following arguments:
-
-* points: the coordinate points [x,y] between which we are asked to find the optimal route.
-* alpha: coefficient that determines how big a role the pheromone will play in the choice of the path (a larger *a*
-  means that we look more and more at what path the other ants have formed).
-* beta: a coefficient that determines how much the distance between points will play a role in the choice of the path (a
-  larger *b* means that the ant is more likely to choose the closest point from the point it is at).
-* evapo_coef: pheromone evaporation coefficient.
-* Q: parameter related to pheromone strength (used mainly for scaling between pheromone and distance)
-* colony_size: total number of ants.
-* num_iter: total number of iterations.
 
 ```python
-def aco(points, alpha, beta, evapo_coef, colony_size, num_iter):
+def ant_colony_optimization(points, n_ants, num_iter, alpha=1, beta=1, evapo_coef=0.5):
     # compute (once) the distance matrices
     dist_mat = distance_matrix(points)
     inv_dist_mat = inverse_distance_matrix(points)
 
-    n_locations = points.shape[0]  # total number of points
-    ants = [Ant(n_locations) for _ in range(colony_size)]  # ant colony
+    n_locations = len(points)  # total number of points
+    ants = [Ant(n_locations) for _ in range(n_ants)]  # ant colony
 
     # determine initial pheromone value
     phero_init = (inv_dist_mat.mean()) ** (beta / alpha)
     g_phero_graph = np.full((n_locations, n_locations), phero_init)  # pheromone matrix (arbitrary initialization)
-
     # determine scaling coefficient "Q"
     [ant.ant_trip(g_phero_graph, dist_mat, inv_dist_mat, 1) for ant in ants]
     best_ant = np.argmin([ant.tour_cost for ant in ants])  # ant that scored best in this iteration
-    q = ants[best_ant].tour_cost * phero_init / (0.1 * colony_size)
+    q = ants[best_ant].tour_cost * phero_init / (0.1 * n_ants)
 
     best_path_length = ants[best_ant].tour_cost
     best_path = ants[best_ant].places_visited.copy()
@@ -320,71 +320,152 @@ def aco(points, alpha, beta, evapo_coef, colony_size, num_iter):
         [ant.flush() for ant in ants]
 
     return best_path, monitor_costs
-
 ```
 
-function for plotting the result:
+Όπως είδαμε, οι πιθανότητες για την επιλογή του επόμενου σημείου στη διαδρομή ενός μυρμηγκιού εξαρτώνται και από την ποσότητα φερομόνης που υπάρχει σε κάθε τμήμα του μονοπατιού. Οι ποσότητες αυτές είναι αποθηκευμένες σε έναν πίνακα, ο οποίος θα ανανεώνεται κάθε φορά που ένα μυρμήγκι ολοκληρώνει μια διαδρομή. Η ανανέωση αυτή λαμβάνει υπόψη:
+
+- την αλληλουχία των σημείων που συνθέτουν τη διαδρομή.
+- το συνολικό μήκος της διαδρομής (όσο πιο σύντομη, τόσο καλύτερη, επομένως εναποτίθεται περισσότερη φερομόνη, ώστε η διαδρομή να φαίνεται ελκυστική στα υπόλοιπα μυρμήγκια).
+- τον συντελεστή εξάτμισης της φερομόνης (λειτουργεί σαν "μνήμη" του συστήματος).
+
+Γράφουμε τώρα τη συνάρτηση ανανέωσης φερομόνης:
+
 
 ```python
-def plot_map(points, best_path, monitor_costs):
-    plt.figure(figsize=(20, 5))
-    plt.subplot(1, 2, 1)
-    plt.plot(points[best_path, 0],
-             points[best_path, 1])
+def update_pheromones(g_phero_graph,ants,evapo_coef=0.05):
 
-    plt.subplot(1, 2, 2)
-    plt.plot(np.arange(len(monitor_costs)), monitor_costs)
+    dim = g_phero_graph.shape[0]
+
+    for i in range(dim):
+        for j in range(dim):
+            g_phero_graph[i,j] = (1 - evapo_coef)*g_phero_graph[i,j] + np.sum([ant.phero_graph[i,j] for ant in ants])
+            g_phero_graph[i,j] = max(g_phero_graph[i,j],1e-08) # avoid division by zero
+
+    return g_phero_graph
+```
+
+Τώρα μπορούμε να τρέξουμε τον αλγόριθμο και να αποθηκεύσουμε την καλύτερη διαδρομή που βρέθηκε:
+
+
+```python
+best_path_order, costs = ant_colony_optimization(
+    points=bin_points,
+    n_ants=200,
+    num_iter=200
+)
+```
+
+    
+
+Για να εμφανίσουμε τη διαδρομή, θα χρειαστούμε την αρχική σειρά των σημείων, η οποία είναι αποθηκευμένη στη λίστα `bin_points` και την σειρά του καλύτερου μονοπάτιού, το οποίο είναι αποθηκευμένο στη λίστα `best_path_order`. Ας ορίσουμε μια συνάρτηση που θα εμφανίζει το μονοπάτι και την εξέλιξη του μήκους (cost) του κατά τη διάρκεια του αλγορίθμου:
+
+
+```python
+def plot_map(points: list, best_path: list, monitor_costs: list):
+    _, ax = plt.subplots(1, 2, figsize=(15, 5))
+
+    ax[0].plot([p[0] for p in points], [p[1] for p in points], 'o', color='black')
+    ax[0].plot([p[0] for p in points], [p[1] for p in points], 'o', color='black')
+    ax[0].plot([points[best_path[i]][0] for i in range(len(best_path))],
+               [points[best_path[i]][1] for i in range(len(best_path))], color='red', linewidth=2)
+    ax[0].set_title('Best path')
+
+    ax[1].plot(monitor_costs)
+    ax[1].set_title('Best path length evolution')
 
     plt.show()
-
-
 ```
 
-Example of usage:
+Και τώρα μπορούμε να εμφανίσουμε το αποτέλεσμα:
+
 
 ```python
-# Parse the KML file and get the dictionary of placemarks
-placemarks = parse_kml_file("Παναγία-Προφήτης Ηλίας.kml")
+plot_map(bin_points, best_path_order, costs)
+```
 
-point_names = list(placemarks.keys())
-points = np.array(list(placemarks.values()))
 
-best_path_order, monitor_costs = aco(
-    points=points,
-    alpha=1,
-    beta=1,
-    evapo_coef=0.05,
-    colony_size=150,
-    num_iter=100
-)
-print(monitor_costs[-1])
+    
+![png](optimal_route_files/optimal_route_37_0.png)
+    
 
-plot_map(points, best_path_order, monitor_costs)
 
+Το τελικό κόστος της διαδρομής είναι:
+
+
+```python
+print(costs[-1])
+```
+
+    0.10387122823728331
+    
+
+Τέλος, μπορούμε να εμφανίσουμε και το μονοπάτι πάνω στον χάρτη της Καβάλας, θα χρειαστούμε μία καινούργια συνάρτηση, θα χρησιμοποιήσουμε ξανά τις σχέσεις που ορίσαμε προηγουμένως στη συνάρτηση show_map_points() :
+
+
+```python
+def plot_path_on_map(path, order, w=12, h=8):
+    plt.figure(figsize=(w, h))
+    plt.imshow(kavala_map)
+
+    # Plot the points
+    for i in range(len(path)):
+        x_c = 29140.7 * path[i][0] - 710754
+        y_c = 1.58139 * 10**6 - 38614.2 * path[i][1]
+
+        plt.plot(x_c, y_c, 'y*', markersize=15)
+
+    # Connect the points based on best_path_order
+    for i in range(len(order)-1):
+        start_idx = order[i]
+        end_idx = order[i+1]
+
+        start_point = path[start_idx]
+        end_point = path[end_idx]
+
+        start_x_c = 29140.7 * start_point[0] - 710754
+        start_y_c = 1.58139 * 10**6 - 38614.2 * start_point[1]
+
+        end_x_c = 29140.7 * end_point[0] - 710754
+        end_y_c = 1.58139 * 10**6 - 38614.2 * end_point[1]
+
+        plt.plot([start_x_c, end_x_c], [start_y_c, end_y_c], 'r')
+
+    plt.show()
+```
+
+Τέλος, μπορούμε να εμφανίσουμε το μονοπάτι πάνω στον χάρτη της Καβάλας:
+
+
+```python
+plot_path_on_map(bin_points, best_path_order)
+```
+
+
+    
+![png](optimal_route_files/optimal_route_43_0.png)
+    
+
+Και για να εμφανίσουμε το μονοπάτι με βάση τα ονόματα των σημείων:
+
+```python
 sorted_point_names = np.array(point_names)[np.argsort(best_path_order)]
 
 print(sorted_point_names)
 ```
 
-    100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 100/100 [05:06<00:00,  3.06s/it]
-    
-
-    0.1083703
-
-![png](optimal_route_files/optimal_route_29_2.png)
-
-    ['1911' '1907' '1912' '1913' '1915' '1916' '1917' '1886' '1885' '1881'
-     '1880' '1868' '1867' '1866' '1865' '1877' '1876' '1878' '1879' '1864'
-     '1869' '1863' '1862' '1861' '1870' '1871' '1872' '1873' '1874' '1875'
-     '1860' '1882' '1883' '1884' '1887' '1888' '1889' '1890' '1891' '1903'
-     '1904' '1902' '1892' '1899' '1900' '1901' '1893' '1894' '1914' '1909'
-     '1910' '1895' '1896' '1897' '1898' '1905' '1908' '1906' '1918' '1920'
-     '1919' '1971' '1973' '1972' '1985' '1983' '1984' '1982' '1981' '1979'
-     '1980' '1978' '1977' '1976' '1975' '1974' '1986' '1990' '1989' '1988'
-     '1987' '1993' '1994' '1995' '1991' '1992' '1968' '1967' '1966' '1957'
-     '1958' '1960' '1959' '1961' '1962' '1963' '1964' '1965' '1954' '1956'
-     '1955' '1948' '1949' '1950' '1947' '1946' '1951' '1952' '1953' '1940'
-     '1939' '1937' '1938' '1942' '1941' '1932' '1931' '1930' '1936' '1935'
-     '1934' '1933' '1943' '1944' '1945' '1921' '1923' '1922' '1925' '1924'
-     '1926' '1928' '1927' '1929' '1969' '1970']
-    
+```python
+['1992' '1991' '1973' '1972' '1970' '1969' '1968' '1964' '1963' '1959'
+ '1958' '1945' '1946' '1947' '1948' '1949' '1950' '1951' '1952' '1956'
+ '1944' '1955' '1954' '1953' '1942' '1943' '1941' '1940' '1939' '1938'
+ '1957' '1960' '1961' '1962' '1965' '1967' '1966' '1995' '1994' '1983'
+ '1982' '1981' '1993' '1978' '1979' '1980' '1986' '1987' '1971' '1989'
+ '1988' '1974' '1975' '1977' '1976' '1984' '1990' '1985' '1935' '1937'
+ '1936' '1869' '1870' '1871' '1932' '1934' '1933' '1868' '1867' '1860'
+ '1861' '1862' '1863' '1864' '1865' '1866' '1931' '1928' '1927' '1929'
+ '1930' '1924' '1923' '1922' '1925' '1926' '1910' '1911' '1912' '1914'
+ '1913' '1920' '1921' '1915' '1916' '1917' '1918' '1919' '1907' '1908'
+ '1909' '1899' '1900' '1901' '1905' '1904' '1902' '1903' '1906' '1895'
+ '1896' '1897' '1898' '1891' '1892' '1889' '1888' '1887' '1894' '1893'
+ '1884' '1890' '1886' '1885' '1881' '1880' '1883' '1882' '1879' '1878'
+ '1877' '1874' '1875' '1876' '1872' '1873']
+```
