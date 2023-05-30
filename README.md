@@ -96,8 +96,10 @@ kavala_map = mpimg.imread("optimal_route_files/kavala_map.png")
 
 Η σχέσεις που χρησιμοποιήσαμε εμείς είναι η εξής:
 Για τα Χ:
+
 <img src="optimal_route_files/metatopisi_x.png">
 Για τα Υ:
+
 <img src="optimal_route_files/metatopisi_y.png">
 
 
