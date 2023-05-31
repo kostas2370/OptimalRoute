@@ -353,8 +353,8 @@ def update_pheromones(g_phero_graph,ants,evapo_coef=0.05):
 ```python
 best_path_order, costs = ant_colony_optimization(
     points=bin_points,
-    n_ants=200,
-    num_iter=200
+    n_ants=100,
+    num_iter=100
 )
 ```
 
